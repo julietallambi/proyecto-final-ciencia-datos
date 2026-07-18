@@ -1,0 +1,151 @@
+---
+title: "Trabajo final - Análisis exploratorio"
+format: html
+editor: visual
+---
+
+### Librerías
+
+```{r}
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+library(ggmosaic)
+library(RColorBrewer)
+```
+
+### Limpieza de datos
+
+```{r}
+data = International_Education_Costs
+data= data |> select(Country, Program, Tuition_USD:Insurance_USD) |> 
+          transmute(pais = as_factor(Country), 
+              area = as_factor(Program),
+              costo_estudios = Tuition_USD, 
+              indice_costo_vivienda = Living_Cost_Index,
+              alquiler = Rent_USD,
+              costo_visa = Visa_Fee_USD,
+              seguro_medico = Insurance_USD)
+
+#Crear una nueva variable llamada continente
+data <- data |> 
+  mutate(continente = case_when(
+    pais %in% c("USA", "Canada", "Mexico", "Brazil", "Argentina", "Colombia", 
+                "Dominican Republic", "Peru", "Ecuador", "Uruguay", 
+                "Panama", "El Salvador") ~ "América",
+    pais %in% c("UK", "Germany", "Netherlands", "France", "Switzerland", "Sweden", 
+                "Denmark", "Ireland", "Austria", "Belgium", "Portugal", 
+                "Czech Republic", "Poland", "Spain", "Italy", "Finland", 
+                "Norway", "Russia", "Greece", "Hungary", "Iceland", 
+                "Romania", "Luxembourg", "Cyprus", "Croatia", "Bulgaria", 
+                "Ukraine", "Slovenia", "Serbia") ~ "Europa",
+    pais %in% c("Japan", "Singapore", "China", "South Korea", "Hong Kong", 
+                "Israel", "Taiwan", "India", "Malaysia", "Turkey", "Thailand", 
+                "UAE", "Indonesia", "Saudi Arabia", "Vietnam", "Lebanon", 
+                "Bahrain", "Bangladesh", "Kuwait", "Uzbekistan", "Iran") ~ "Asia",
+    pais %in% c("South Africa", "Egypt", "Nigeria", "Tunisia", "Morocco", 
+                "Ghana", "Algeria") ~ "África",
+    pais %in% c("Australia", "New Zealand") ~ "Oceanía",
+    
+    TRUE ~ "Otro" 
+  ))
+
+
+data <- data |> 
+  mutate(continente = as_factor(continente))
+```
+
+### Análisis exploratorio
+
+```{r}
+terciles <- quantile(data$costo_estudios,
+                     probs = c(1/3, 2/3))
+
+terciles
+```
+
+```{r}
+data = data |> mutate(nivel_costos = case_when(costo_estudios < 3800 ~ "Bajo",
+                                        costo_estudios>=3800 & costo_estudios<26500 ~ "Medio",
+                                        costo_estudios>=26500 ~"Alto"))
+data
+```
+
+```{r}
+top_10_paises = data |> count(pais, sort=TRUE) |> slice_max(n, n=10)
+
+```
+
+```{r}
+top_10_paises |>
+  ggplot(aes(x = reorder(pais, n), y = n)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(title='Cantidad de estudiantes extranjeros por país',
+       x='País',
+       y='Cantidad de estudiantes')
+```
+
+```{r}
+top_15_iv <- data |> 
+  group_by(pais) |> 
+  summarise(indice_costo_vivienda = mean(indice_costo_vivienda)) |> 
+  slice_max(order_by = indice_costo_vivienda, n = 15)
+
+ggplot(top_15_iv,
+       aes(x = indice_costo_vivienda,
+           y = reorder(pais, indice_costo_vivienda))) +
+  geom_col(fill = "#857FB0") +
+  labs(title = "15 Países con mayor índice del costo de vivienda",
+       x = "Índice del costo de vivenda",
+       y = "País") +
+  theme_minimal()
+```
+
+```{r}
+data_top10_paises <- data |>
+  filter(pais %in% top_10_paises$pais) |> 
+  ggplot(aes(x = costo_estudios,
+           y = alquiler,
+           color = pais)) +
+  geom_point(alpha=0.6, size=2) + labs(title = 'Relación entre el costo de alquiler y costo de los estudios por país', x = 'Costo estudios', y ='Costo alquiler', color = 'País') 
+ggplotly(data_top10_paises) 
+```
+
+### Medidas de resumen y dispersión
+
+```{r}
+resumen_costos <- data |> 
+  group_by(continente) |> 
+  summarise(
+    costo_estudio_promedio = mean(costo_estudios), 
+    costo_estudio_sd = sd(costo_estudios))
+
+```
+
+```{r}
+data_comparado <- data |> 
+  filter(continente %in% c("Europa", "América"))
+
+ggplot(data_comparado, aes(x = costo_estudios, fill = continente)) +
+  geom_density(alpha = 0.5) + 
+  theme_minimal() +
+  labs(
+    title = "Comparación de la distribución de costos de estudios",
+    subtitle = "Europa vs. América",
+    x = "Costo de estudios",
+    y = "Densidad",
+    fill = "Continente")
+```
+
+```{r}
+ggplot(data, aes(x = continente, fill = nivel_costos)) +
+  geom_bar(position = "fill") +
+  labs(
+    x = "Continente",
+    y = "Proporción",
+    fill = "Nivel de costos en educación"
+  ) +
+  scale_y_continuous(labels = scales::percent) + labs(title = "Proporción de nivel de costos por continente") +
+  theme_minimal() + scale_fill_brewer(palette = "Set2")
+```
