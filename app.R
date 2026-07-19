@@ -1,5 +1,4 @@
 #Librerías
-
 library(tidyverse)
 library(ggplot2)
 library(plotly)
@@ -74,7 +73,7 @@ ui <- dashboardPage(
     sidebarMenu(
       menuItem("Mapa Global", tabName = "mapa", icon = icon("globe-americas")),
       menuItem("Análisis Estadístico", tabName = "analisis", icon = icon("chart-pie")),
-      menuItem("Calculadora Pro", tabName = "calculadora", icon = icon("wallet"))
+      menuItem("Calculadora oferta educativa", tabName = "calculadora", icon = icon("wallet"))
     )
   ),
   
@@ -98,29 +97,29 @@ ui <- dashboardPage(
       tabItem(tabName = "mapa",
               fluidRow(
                 box(title = "Filtro Geográfico", width = 4, status = "primary", solidHeader = TRUE,
-                    selectInput("sel_cont_mapa", "Ver Continente:", choices = continentes_lista)),
+                    selectInput("sel_cont_mapa", "Seleccionar Continente:", choices = continentes_lista)),
                 valueBoxOutput("box_pct", width = 4),
                 valueBoxOutput("box_prom", width = 4)
               ),
-              box(title = "Cuota de Mercado Estudiantil por País (%)", width = 12, plotlyOutput("mapa_interactivo"))
+              box(title = "Porcentaje de estudiantes por país", width = 12, plotlyOutput("mapa_interactivo"))
       ),
       
       # PESTAÑA 2: ANÁLISIS (Distribución 2x2 Simétrica)
       tabItem(tabName = "analisis",
-              box(title = "Filtro Global de la Pestaña", width = 12, status = "info", solidHeader = TRUE,
-                  selectInput("sel_cont_eda", "Filtrar Continente para Comparación:", choices = continentes_lista)),
+              box(title = "Filtro geográfico", width = 12, status = "info", solidHeader = TRUE,
+                  selectInput("sel_cont_eda", "Seleccionar continente:", choices = continentes_lista)),
               
               # Fila 1
               fluidRow(
-                box(title = "Densidad de Matrículas", width = 6, plotOutput("plot_density")),
-                box(title = "Niveles de Costo (Proporción)", width = 6, plotOutput("plot_barras"))
+                box(title = "Densidad de costos de estudio", width = 6, plotOutput("plot_density")),
+                box(title = "Costos de estudio por continente", width = 6, plotOutput("plot_barras"))
               ),
               
               # Fila 2
               fluidRow(
-                box(title = "Relación Alquiler vs Matrícula", width = 6, plotlyOutput("plot_scatter")),
-                box(title = "Top 5 Áreas por País", width = 6, 
-                    selectInput("pais_popular", "Elegir País Top:", choices = top_5_paises),
+                box(title = "Relación entre Alquiler y Matrícula", width = 6, plotlyOutput("plot_scatter")),
+                box(title = "Top 5 áreas estudiadas por país", width = 6, 
+                    selectInput("pais_popular", "Seleccionar país:", choices = top_5_paises),
                     plotOutput("plot_areas_dinamico"))
               )
       ),
@@ -129,12 +128,12 @@ ui <- dashboardPage(
       tabItem(tabName = "calculadora",
               fluidRow(
                 box(title = "Personaliza tu Búsqueda", width = 12, status = "success", solidHeader = TRUE,
-                    column(4, sliderInput("presupuesto", "Presupuesto Máximo (USD):", min = 0, max = 60000, value = 25000, step = 500)),
+                    column(4, sliderInput("presupuesto", "Presupuesto máximo (USD):", min = 0, max = 60000, value = 25000, step = 500)),
                     column(4, selectInput("sel_area_calc", "Área de estudio:", choices = areas_disponibles)),
-                    column(4, selectInput("sel_cont_calc", "Región preferida:", choices = continentes_lista))
+                    column(4, selectInput("sel_cont_calc", "Continente preferido:", choices = continentes_lista))
                 )
               ),
-              box(title = "Resultados de Oferta Educativa (Ordenado por mayor costo)", width = 12, DTOutput("tabla_interactiva"))
+              box(title = "Resultados de oferta educativa (ordenado por mayor costo)", width = 12, DTOutput("tabla_interactiva"))
       )
     )
   )
@@ -159,13 +158,13 @@ server <- function(input, output) {
   # OUTPUTS MAPA E INDICADORES
   output$box_pct <- renderValueBox({
     val <- (nrow(datos_mapa()) / nrow(data)) * 100
-    valueBox(paste0(round(val, 1), "%"), "De la Oferta Global", icon = icon("percent"), color = "purple")
+    valueBox(paste0(round(val, 1), "%"), "De la oferta global", icon = icon("percent"), color = "purple")
   })
   
   output$box_prom <- renderValueBox({
     prom <- mean(datos_mapa()$costo_estudios, na.rm = TRUE)
     if(is.nan(prom)) prom <- 0
-    valueBox(paste0("$", round(prom)), "Promedio Matrícula", icon = icon("dollar-sign"), color = "olive")
+    valueBox(paste0("$", round(prom)), "Promedio de costos educativos", icon = icon("dollar-sign"), color = "olive")
   })
   
   output$mapa_interactivo <- renderPlotly({
@@ -182,13 +181,13 @@ server <- function(input, output) {
   output$plot_density <- renderPlot({
     ggplot(datos_eda(), aes(x = costo_estudios, fill = continente)) +
       geom_density(alpha = 0.7) + theme_minimal() + scale_fill_brewer(palette = "Set1") +
-      labs(x = "Costo Matrícula (USD)", y = "Densidad")
+      labs(x = "Costos educativos (USD)", y = "Densidad")
   })
   
   output$plot_barras <- renderPlot({
     ggplot(datos_eda(), aes(x = continente, fill = nivel_costos)) +
       geom_bar(position = "fill") + scale_fill_brewer(palette = "Set2", drop = FALSE) +
-      theme_minimal() + labs(x = "Continente", y = "Proporción", fill = "Nivel Costo")
+      theme_minimal() + labs(x = "Continente", y = "Proporción", fill = "Nivel de Costo")
   })
   
   output$plot_scatter <- renderPlotly({
@@ -207,7 +206,7 @@ server <- function(input, output) {
       geom_bar(stat = "identity", position = "fill") +
       scale_y_continuous(labels = scales::percent) +
       theme_minimal() + scale_fill_brewer(palette = "Pastel1") +
-      labs(x = "País", y = "Distribución Áreas", fill = "Carrera")
+      labs(x = "País", y = "Distribución de áreas", fill = "Área")
   })
   
   # OUTPUT CALCULADORA (Triple filtro dinámico)
