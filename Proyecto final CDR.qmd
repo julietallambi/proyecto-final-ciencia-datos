@@ -109,7 +109,6 @@ data_top10_paises <- data |>
            y = alquiler,
            color = pais)) +
   geom_point(alpha=0.6, size=2) + labs(title = 'Relación entre el costo de alquiler y costo de los estudios por país', x = 'Costo estudios', y ='Costo alquiler', color = 'País') 
-ggplotly(data_top10_paises) 
 ```
 
 ### Medidas de resumen y dispersión
@@ -147,5 +146,36 @@ ggplot(data, aes(x = continente, fill = nivel_costos)) +
     fill = "Nivel de costos en educación"
   ) +
   scale_y_continuous(labels = scales::percent) + labs(title = "Proporción de nivel de costos por continente") +
+  theme_minimal() + scale_fill_brewer(palette = "Set2")
+```
+
+```{r}
+# Top 5 países
+top_5_paises <- data %>%
+  count(pais, sort = TRUE) %>%
+  slice_head(n = 5)
+
+# Top 5 áreas dentro de esos países
+top_5_areas <- data %>%
+  semi_join(top_5_paises, by = "pais") %>%
+  count(area, sort = TRUE) %>%
+  slice_head(n = 5)
+
+# Datos para el gráfico
+grafico <- data %>%
+  semi_join(top_5_paises, by = "pais") %>%
+  semi_join(top_5_areas, by = "area") %>%
+  count(pais, area)
+
+ggplot(grafico,
+       aes(x = pais, y = n, fill = area)) +
+  geom_bar(stat = "identity", position = "fill") +
+  scale_y_continuous(labels = scales::percent) +
+  labs(
+    title = "Distribución de las 5 áreas más estudiadas en los países más populares",
+    x = "País",
+    y = "Porcentaje de estudiantes",
+    fill = "Área de estudio"
+  ) +
   theme_minimal() + scale_fill_brewer(palette = "Set2")
 ```
