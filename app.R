@@ -12,18 +12,18 @@ data <- read.csv("International_Education_Costs.csv")
 
 #Limpieza de datos
 
-data= data |> select(Country, Program, Tuition_USD:Insurance_USD) |> 
+data= data |> select(Country, Program, Tuition_USD:Insurance_USD, Duration_Years) |> 
   transmute(pais = as_factor(Country), 
             area = as_factor(Program),
             costo_estudios = Tuition_USD, 
             indice_costo_vivienda = Living_Cost_Index,
-            alquiler = Rent_USD,
-            costo_visa = Visa_Fee_USD,
-            seguro_medico = Insurance_USD)
+            alquiler_mensual = Rent_USD,
+            anios= Duration_Years)
 
-#Crear una nueva variable llamada continente
+#Crear nuevas variables continente y alquiler total
 data <- data |> 
-  mutate(continente = case_when(
+  mutate(alquiler_total = alquiler_mensual * 12 * anios,
+    continente = case_when(
     pais %in% c("USA", "Canada", "Mexico", "Brazil", "Argentina", "Colombia", 
                 "Dominican Republic", "Peru", "Ecuador", "Uruguay", 
                 "Panama", "El Salvador") ~ "América",
@@ -117,7 +117,7 @@ ui <- dashboardPage(
               
               # Fila 2
               fluidRow(
-                box(title = "Relación entre Alquiler y Matrícula", width = 6, plotlyOutput("plot_scatter")),
+                box(title = "Relación entre costos de alquiler y estudio totales", width = 6, plotlyOutput("plot_scatter")),
                 box(title = "Top 5 áreas estudiadas por país", width = 6, 
                     selectInput("pais_popular", "Seleccionar país:", choices = top_5_paises),
                     plotOutput("plot_areas_dinamico"))
@@ -191,10 +191,20 @@ server <- function(input, output) {
   })
   
   output$plot_scatter <- renderPlotly({
-    g <- ggplot(datos_eda(), aes(x = alquiler, y = costo_estudios, color = continente, text = pais)) +
-      geom_point(alpha = 0.7, size = 2) + theme_light() + scale_color_brewer(palette = "Set1") +
-      labs(x = "Alquiler Mensual", y = "Matrícula Anual")
-    ggplotly(g)
+    g <- ggplot(datos_eda(), aes(x = alquiler_total, 
+                                 y = costo_estudios, 
+                                 color = continente, 
+                                 text = paste("País:", pais, 
+                                              "<br>Duración:", anios, "años",
+                                              "<br>Matrícula Total: $", costo_estudios,
+                                              "<br>Alquiler Total: $", round(alquiler_total)))) +
+      geom_point(alpha = 0.5, size = 1.5) + 
+      theme_light() + 
+      scale_color_brewer(palette = "Set1") +
+      labs(x = "Gasto total en alquiler (USD)", 
+           y = "Costo total en estudios (USD)")
+    
+    ggplotly(g, tooltip = "text")
   })
   
   output$plot_areas_dinamico <- renderPlot({
