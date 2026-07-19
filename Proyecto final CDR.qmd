@@ -226,3 +226,5 @@ resumen_costos <- data |>
     costo_estudio_promedio = mean(costo_estudios), 
     costo_estudio_sd = sd(costo_estudios))
 ```
+
+hugjghgjjkgkf
