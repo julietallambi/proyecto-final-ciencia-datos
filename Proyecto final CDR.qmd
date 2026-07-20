@@ -18,41 +18,49 @@ El conjunto de datos seleccionado, llamado *"Cost of International Education"* f
 
 El dataset original cuenta con registros que cubren múltiples países, ciudades y universidades. Las variables elegidas para nuestro análisis fueron:
 
--   `Country` (en el código como `pais`): Nombre del país donde se encuentra la institución educativa.
+- `Country` (en el código como `pais`): Nombre del país donde se encuentra la institución educativa.
 
--   `Program` (en el código como `area`): Nombre de la carrera, curso o disciplina específica de estudio.
+- `Program` (en el código como `area`): Nombre de la carrera, curso o disciplina específica de estudio.
 
--   `Tuition_USD` (en el código como `costo_estudios`): Costo total de la matrícula por la duración completa del programa, expresado en dólares estadounidenses.
+- `Tuition_USD` (en el código como `costo_estudios`): Costo total de la matrícula por la duración completa del programa, expresado en dólares estadounidenses.
 
--   `Duration_Years` (en el código como `anios`): Duración total estimada de la carrera o programa académico en años.
+- `Duration_Years` (en el código como `anios`): Duración total estimada de la carrera o programa académico en años.
 
--   `Rent_USD` (en el código como `alquiler_mensual`): Gasto promedio mensual estimado para el alojamiento del estudiante en USD.
+- `Rent_USD` (en el código como `alquiler_mensual`): Gasto promedio mensual estimado para el alojamiento del estudiante en USD.
 
--   `Living_Cost_Index` (en el código como `indice_costo_vivienda`): Índice relativo que mide gastos diarios (comida, servicios, transporte), utilizando a la ciudad de Nueva York como base 100.
+- `Living_Cost_Index` (en el código como `indice_costo_vivienda`): Índice relativo que mide gastos diarios (comida, servicios, transporte), utilizando a la ciudad de Nueva York como base 100.
 
 Además, creamos algunas variables derivadas de las anteriores mediante el uso de funciones de **`tidyverse`** para mejorar la segmentación y la precisión del análisis:
 
--   `continente`: Se creó utilizando la función `case_when` para agrupar los países en regiones geográficas (América, Europa, Asia, África y Oceanía). Esto permite realizar comparaciones macroeconómicas y visualizar patrones regionales en lugar de solo por país individual.
+- `continente`: Se creó utilizando la función `case_when` para agrupar los países en regiones geográficas (América, Europa, Asia, África y Oceanía). Esto permite realizar comparaciones macroeconómicas y visualizar patrones regionales en lugar de solo por país individual.
 
--   `alquiler_total`: Variable fundamental calculada multiplicando (`alquiler_mensual * 12 * anios`). Su propósito es estandarizar el gasto de vivienda al mismo periodo temporal que el costo de estudios, permitiendo comparar el esfuerzo económico total de vida frente al académico.
+- `alquiler_total`: Variable fundamental calculada multiplicando (`alquiler_mensual * 12 * anios`). Su propósito es estandarizar el gasto de vivienda al mismo periodo temporal que el costo de estudios, permitiendo comparar el esfuerzo económico total de vida frente al académico.
 
--   `nivel_costos`: Clasificación categórica del costo de los estudios en tres niveles (Bajo, Medio, Alto). Los puntos de corte se definieron mediante el cálculo de terciles del `costo_estudios`, facilitando el análisis de proporciones.
+- `nivel_costos`: Clasificación categórica del costo de los estudios en tres niveles (Bajo, Medio, Alto). Los puntos de corte se definieron mediante el cálculo de terciles del `costo_estudios`, facilitando el análisis de proporciones.
 
 **Origen y Calidad de la Información**
 
 La procedencia de los datos combina diversas fuentes especializadas para asegurar la comparabilidad, como publicaciones de índices de ciudades de renombre como Numbeo y Mercer para el Índice de costo de vida, utilizando a la ciudad de Nueva York como base (100) para la normalización. Por otro lado, para los alquileres se reunieron conjuntos de datos de precios de vivienda mediante crowdsourcing para reflejar costos de mercado reales y se utilizaron cronogramas de tarifas oficiales de las universidades (públicas y privadas, razón por la cual en algunos casos el costo es \$0) para incluír los costos de estudios.
 
-#### Limpieza
+**Objetivo:**
+
+El propósito de este estudio es comparar las opciones reales de educación internacional, analizando la relación entre los costos académicos y los gastos de manutención. El objetivo final es consolidar estos hallazgos en una aplicación Shiny que ayude a los usuarios a encontrar un equilibrio entre su presupuesto y sus metas académicas.
 
 ```{r}
+#| include: false
+
+#Cargar librerías
 library(tidyverse)
 library(ggplot2)
 library(plotly)
 library(ggmosaic)
 library(RColorBrewer)
+library(kableExtra)
 ```
 
 ```{r}
+#| echo: false
+
 #Cargar datos
 data <- read.csv("International_Education_Costs.csv")
 
@@ -66,7 +74,7 @@ data= data |> select(Country, Program, Tuition_USD:Insurance_USD, Duration_Years
             alquiler_mensual = Rent_USD,
             anios= Duration_Years)
 
-#Crear nuevas variables continente y alquiler total
+#Crear nuevas variables: continente y alquiler total
 data <- data |> 
   mutate(alquiler_total = alquiler_mensual * 12 * anios,
     continente = case_when(
@@ -90,27 +98,31 @@ data <- data |>
     TRUE ~ "Otro" 
   ))
 
-#Cambiar los continentes a factores
+#Cambiar la variable continente a factor
 data <- data |> 
   mutate(continente = as_factor(continente))
 ```
 
 #### Análisis exploratorio
 
-Dividir costos en terciles
-
 ```{r}
+#| echo: false
+
+#Dividir la variable costo_estudios en terciles
 terciles <- quantile(data$costo_estudios,
                      probs = c(1/3, 2/3))
 
 data = data |> mutate(nivel_costos = case_when(costo_estudios < 3800 ~ "Bajo",
                                         costo_estudios>=3800 & costo_estudios<26500 ~ "Medio",
-                                        costo_estudios>=26500 ~"Alto"))
+                                        costo_estudios>=26500 ~"Alto")) 
 ```
 
-10 países con más estudiantes extranjeros
+#### ¿Cuáles son los destinos que atraen a la mayor cantidad de estudiantes internacionales?
 
 ```{r}
+#| echo: false
+
+#10 países con más estudiantes extranjeros
 top_10_paises = data |> count(pais, sort=TRUE) |> slice_max(n, n=10)
 
 top_10_paises |>
@@ -122,9 +134,16 @@ top_10_paises |>
        y='Cantidad de estudiantes')
 ```
 
-15 países con mayor índice de costo de vivienda
+El gráfico de barras muestra que Reino Unido, Australia, Estados Unidos y Canada lideran ampliamente la recepción de estudiantes.
+
+Existe una clara predominancia de los países de habla inglesa como los destinos más populares para la educación superior.
+
+### ¿En qué países es más elevado el costo de vivienda para un estudiante?
 
 ```{r}
+#| echo: false
+
+#15 países con mayor índice de costo de vivienda
 top_15_iv <- data |> 
   group_by(pais) |> 
   summarise(indice_costo_vivienda = mean(indice_costo_vivienda)) |> 
@@ -140,9 +159,14 @@ ggplot(top_15_iv,
   theme_minimal()
 ```
 
-Relación entre el costo total de alquiler y el de estudios
+Suiza está a la par de Nueva York (base 100) y países como Francia, Bélgica y Austria cierran la lista con índices cercanos a 70. Esto implica que cualquier país fuera de este "Top 15" tiene un costo de vida menor al 70% de lo que se gasta en Nueva York.
+
+Las visualizaciones resaltan los destinos más caros, pero podemos concluir que la gran mayoría de los destinos internacionales ofrecen una estructura de costos mucho más manejable, siendo aquellos países no listados los más "baratos" para la manutención del estudiante.
+
+#### ¿Existe una relación directa entre el costo de estudio y el gasto total en alquiler?
 
 ```{r}
+#| echo: false
 data_top10_paises <- data |>
   filter(pais %in% top_10_paises$pais) |> 
   ggplot(aes(x = alquiler_total, y = costo_estudios, color = continente)) +
@@ -151,13 +175,24 @@ data_top10_paises <- data |>
       scale_color_brewer(palette = "Set1") +
       labs(x = "Gasto total en alquiler (USD)", 
            y = "Costo total en estudios (USD)",
-           title= "Relación entre costo total de alquiler y de estudios") +
+           title = "Relación entre costo total de alquiler y de estudios",
+           color = "Continente") +
    scale_fill_brewer(palette = "Set2")
+data_top10_paises
 ```
 
-Distribución de los costos de estudios en Europa vs América
+Se observa que Oceanía presenta una concentración muy alta y uniforme en los costos de estudio, situándose mayoritariamente entre los 30.000 y 45.000 USD. A diferencia de América, no tiene tanta dispersión hacia costos bajos, lo que sugiere que es un continente con una oferta de precios elevados pero más estandarizados.
+
+Asia se agrupa casi exclusivamente en el extremo inferiro izqueirdo del gráfico. Esto indica que es la región más competitiva, ofreciendo tanto las matrículas más bajas (muchas por debajo de los 10,000 USD) como los gastos de alquiler más reducidos.
+
+Se permite identificar un grupo significativo de programas europeos cuyo costo de estudios es nulo. Esto coincide con la existencia de universidades públicas que reportan costos de 0 USD. Como consecuencia el esfuerzo económico total en estos destinos queda definido casi en su totalidad por los gastos de alojamiento.
+
+Mientras que en América los costos de estudio tienden a ser elevados y presentan una gran variabilidad en alquiler.
+
+#### ¿Cómo se diferencia la distribución de los costos en estudio entre Europa y América?
 
 ```{r}
+#| echo: false
 data_comparado <- data |> 
   filter(continente %in% c("Europa", "América"))
 
@@ -172,21 +207,40 @@ ggplot(data_comparado, aes(x = costo_estudios, fill = continente)) +
     fill = "Continente") + scale_fill_brewer(palette = "Set2")
 ```
 
+El gráfico de densidad muestra una gran concentración de programas europeos en el rango de costo más bajo (cerca de 0 USD), mientras que América tiene una distribución mucho más dispersa y desplazada hacia costos altos.
+
+#### ¿Cuál es la proporción de niveles de costos educativos en cada continente?
+
 ```{r}
+#| echo: false
 ggplot(data, aes(x = continente, fill = nivel_costos)) +
   geom_bar(position = "fill") +
   labs(
+    title = "Proporción de nivel de costos por continente",
     x = "Continente",
     y = "Proporción",
     fill = "Nivel de costos en educación"
   ) +
-  scale_y_continuous(labels = scales::percent) + labs(title = "Proporción de nivel de costos por continente") +
-  theme_minimal() + scale_fill_brewer(palette = "Set2")
+  scale_y_continuous(labels = scales::percent) +
+  scale_fill_brewer(
+    palette = "Set2",
+    labels = c(
+      "Bajo (< 3.800 USD)",
+      "Medio (3.800–26.500 USD)",
+      "Alto (≥ 26.500 USD)"
+    )
+  ) +
+  theme_minimal()
 ```
 
-Distribución de las 5 áreas más estudiadas entre los países más populares
+Oceanía presenta casi exclusivamente programas de costo "Alto", mientras que África compone mayoritariamente de programas de costo "Bajo". Asia muestra una mayoría de programas de costo "Medio¨.
+
+La ubicación geográfica es un predictor casi determinante del segmento de precio (Bajo, Medio, Alto) en el que se encontrarán los costos de estudio.
+
+#### ¿Qué áreas de estudio predominan en los países con mayor flujo de estudiantes?
 
 ```{r}
+#| echo: false
 # Top 5 países
 top_5_paises <- data %>%
   count(pais, sort = TRUE) %>%
@@ -217,12 +271,50 @@ ggplot(grafico,
   theme_minimal() + scale_fill_brewer(palette = "Set2")
 ```
 
-#### Medidas de resumen y dispersión
+En Estados Unidos, Reino Unido, Canadá y Australia, el área de Informática es la disciplina dominante por un margen significativo. En Alemania, se observa una mayor diversidad con una presencia importante de Ingeniería Informática.
+
+Las disicplinas científicas y tecnológicas, con la computación a la cabeza, representan el principal factor de movilidad estudiantil en los destinos más importantes.
+
+#### Medidas de resumen y dispersión:
 
 ```{r}
+#| echo: false
 resumen_costos <- data |> 
   group_by(continente) |> 
   summarise(
     costo_estudio_promedio = mean(costo_estudios), 
     costo_estudio_sd = sd(costo_estudios))
+
+resumen_costos <- resumen_costos |>
+  rename(
+    Continente = continente,
+    `Costo promedio (USD)` = costo_estudio_promedio,
+    `Desvío estándar (USD)` = costo_estudio_sd
+  )
+
+knitr::kable(resumen_costos, caption = "Media y desviación estándar del costo de estudio por continente")
 ```
+
+Para finalizar el análisis exploratorio, se calcularon la media y la desviación estándar de los costos de estudio por continente.
+
+Oceanía presenta el costo promedio más elevado a nivel global (34.111 USD). Lo más notable es su desviación estándar de apenas 5,228 USD, la más baja de todo el estudio. Esto indica que, a diferencia de otras regiones, en Oceanía los precios son sumamente homogéneos y consistentemente altos; es decir, es casi imposible encontrar programas de bajo costo.
+
+África con un promedio de 2,803 USD, se posiciona como el destino con la barrera de entrada financiera más baja. Su costo es aproximadamente 12 veces menor que el de Oceanía, lo que remarca la diferencia extrema en el acceso a la educación superior según la geografía.
+
+Aunque América tiene un promedio alto (29,064 USD), su desviación estándar es la más alta del dataset (18,642 USD). Esto indica que el mercado es extremadamente heterogéneo: existe una variabilidad muy grande que sugiere la existencia de opciones con precios muy distintos entre universidades y países del continente.
+
+Europa y Asia mantienen promedios similares (alrededor de los 10,000 USD). En Europa, la desviación estándar de 12,286 USD es superior a su propia media, lo cual es un reflejo de la coexistencia de universidades públicas con matrícula de 0 USD y universidades privadas de alto costo.
+
+#### Aplicación Shiny:
+
+El objetivo principal de la app es es permitir que futuros estudiantes exploren y comparen los costos de educación internacional de manera personalizada. Esta se organiza en tres secciones: - Mapa e Indicadores: Mapa interactivo desarrollado con plotly que visualiza el porcentaje de estudiantes extranjeros por país, junto con indicadores del costo promedio regional. - Análisis Estadístico: Permite profundizar en la distribución de costos mediante gráficos de densidad y de dispersión que comparan las variables, e incluye un análisis específico del "Top 5" de áreas de estudio por país seleccionado. - Calculadora: Es una sección que genera una tabla dinámica y ordenada para identificar los destinos que mejor se ajustan al perfil financiero del usuario.
+
+Link a la app: <https://julietallambi.shinyapps.io/EduCost/>
+
+#### Conclusión:
+
+Los datos nos confirman que existe una diferencia económica muy marcada en la educación superior según la región del mundo que se elija. Para un estudiante, la clave no es solo mirar el costo promedio, sino también qué tan homogéneos son los precios en cada lugar.
+
+Por un lado, identificamos que África y Europa son las opciones más accesibles. En Europa es fundamental la existencia de universidades públicas con costos de 0 USD, lo que hace que el esfuerzo económico se concentre casi totalmente en el alojamiento. Por otro lado, Oceanía y América representan una inversión mucho más pesada. Un hallazgo importante es que en América existe una dispersión de precios enorme, lo que hace que la planificación financiera sea más compleja que en Oceanía, donde los costos son altos pero mucho más uniformes.
+
+Al final, el éxito de estudiar afuera depende de lograr un equilibrio entre el área elegida (que según vimos es mayoritariamente tecnológica), la realidad económica de cada estudiante y las condiciones financiera del destino que seleccionemos.
