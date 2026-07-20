@@ -64,7 +64,7 @@ continentes_lista <- c("Todos", sort(unique(as.character(data$continente))))
 
 #SHINY
 
-# --- 3. INTERFAZ DE USUARIO (UI) ---
+#ui
 ui <- dashboardPage(
   skin = "purple",
   dashboardHeader(title = span(icon("graduation-cap"), " EduCost Explorer")),
@@ -93,8 +93,7 @@ ui <- dashboardPage(
     ),
     
     tabItems(
-      # PESTAÑA 1: MAPA
-      tabItem(tabName = "mapa",
+    tabItem(tabName = "mapa",
               fluidRow(
                 box(title = "Filtro Geográfico", width = 4, status = "primary", solidHeader = TRUE,
                     selectInput("sel_cont_mapa", "Seleccionar Continente:", choices = continentes_lista)),
@@ -103,19 +102,13 @@ ui <- dashboardPage(
               ),
               box(title = "Porcentaje de estudiantes por país", width = 12, plotlyOutput("mapa_interactivo"))
       ),
-      
-      # PESTAÑA 2: ANÁLISIS (Distribución 2x2 Simétrica)
       tabItem(tabName = "analisis",
               box(title = "Filtro geográfico", width = 12, status = "info", solidHeader = TRUE,
                   selectInput("sel_cont_eda", "Seleccionar continente:", choices = continentes_lista)),
-              
-              # Fila 1
               fluidRow(
                 box(title = "Densidad de costos de estudio", width = 6, plotOutput("plot_density")),
                 box(title = "Costos de estudio por continente", width = 6, plotOutput("plot_barras"))
               ),
-              
-              # Fila 2
               fluidRow(
                 box(title = "Relación entre costos de alquiler y estudio totales", width = 6, plotlyOutput("plot_scatter")),
                 box(title = "Top 5 áreas estudiadas por país", width = 6, 
@@ -123,8 +116,6 @@ ui <- dashboardPage(
                     plotOutput("plot_areas_dinamico"))
               )
       ),
-      
-      # PESTAÑA 3: CALCULADORA
       tabItem(tabName = "calculadora",
               fluidRow(
                 box(title = "Personaliza tu Búsqueda", width = 12, status = "success", solidHeader = TRUE,
@@ -139,10 +130,8 @@ ui <- dashboardPage(
   )
 )
 
-# --- 4. SERVIDOR (SERVER) ---
+#server
 server <- function(input, output) {
-  
-  # REACTIVOS INDEPENDIENTES
   datos_mapa <- reactive({
     df <- data
     if(input$sel_cont_mapa != "Todos") df <- df |> filter(continente == input$sel_cont_mapa)
@@ -154,8 +143,6 @@ server <- function(input, output) {
     if(input$sel_cont_eda != "Todos") df <- df |> filter(continente == input$sel_cont_eda)
     df
   })
-  
-  # OUTPUTS MAPA E INDICADORES
   output$box_pct <- renderValueBox({
     val <- (nrow(datos_mapa()) / nrow(data)) * 100
     valueBox(paste0(round(val, 1), "%"), "De la oferta global", icon = icon("percent"), color = "purple")
@@ -176,8 +163,6 @@ server <- function(input, output) {
                 text = ~paste("País:", pais, "<br>Cuota:", round(porcentaje, 2), "%")) |>
       layout(geo = list(projection = list(type = 'natural earth')))
   })
-  
-  # OUTPUTS ANÁLISIS (Colores unificados por Continente)
   output$plot_density <- renderPlot({
     ggplot(datos_eda(), aes(x = costo_estudios, fill = continente)) +
       geom_density(alpha = 0.7) + theme_minimal() + scale_fill_brewer(palette = "Set1") +
@@ -185,9 +170,27 @@ server <- function(input, output) {
   })
   
   output$plot_barras <- renderPlot({
+    
     ggplot(datos_eda(), aes(x = continente, fill = nivel_costos)) +
-      geom_bar(position = "fill") + scale_fill_brewer(palette = "Set2", drop = FALSE) +
-      theme_minimal() + labs(x = "Continente", y = "Proporción", fill = "Nivel de Costo")
+      geom_bar(position = "fill") +
+      labs(
+        title = "Proporción de nivel de costos por continente",
+        x = "Continente",
+        y = "Proporción",
+        fill = "Nivel de costos en educación"
+      ) +
+      scale_y_continuous(labels = scales::percent) +
+      scale_fill_brewer(
+        palette = "Set2",
+        drop = FALSE,
+        labels = c(
+          "Bajo (< 3.800 USD)",
+          "Medio (3.800–26.500 USD)",
+          "Alto (≥ 26.500 USD)"
+        )
+      ) +
+      theme_minimal()
+    
   })
   
   output$plot_scatter <- renderPlotly({
@@ -218,8 +221,6 @@ server <- function(input, output) {
       theme_minimal() + scale_fill_brewer(palette = "Pastel1") +
       labs(x = "País", y = "Distribución de áreas", fill = "Área")
   })
-  
-  # OUTPUT CALCULADORA (Triple filtro dinámico)
   output$tabla_interactiva <- renderDT({
     df_calc <- data |> filter(costo_estudios <= input$presupuesto)
     if(input$sel_area_calc != "Todas") df_calc <- df_calc |> filter(area == input$sel_area_calc)
@@ -228,5 +229,4 @@ server <- function(input, output) {
   })
 }
 
-# --- 5. LANZAR APP ---
 shinyApp(ui, server)
